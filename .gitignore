@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Machine-specific SDK path (CI provides the SDK).
+local.properties
+
+!gradle/wrapper/gradle-wrapper.jar
+
+.idea/
+.DS_Store
+*.keystore
+*.jks
+.env
+Thumbs.db
