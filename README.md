@@ -51,11 +51,14 @@ Role categories unlocked: **Android Engineer (Kotlin)**, Mobile.
 
 This is the architecture senior Android interviews probe: Compose + Room + a networking client, a repository with a single source of truth, `StateFlow`, navigation, and a correct offline-first merge. The reconciler is the kind of pure, testable core that keeps an app correct under flaky networks.
 
-## Build and run
+## How to run
+
+Prerequisites: JDK 17+ (the included Gradle wrapper handles the rest), Android SDK with platform-34 and build-tools 34. On CI, `android-actions/setup-android@v3` installs the SDK; locally, Android Studio's first launch installs them, or `sdkmanager "platforms;android-34" "build-tools;34.0.0"`.
 
 ```bash
 ./gradlew testDebugUnitTest   # 12 unit tests (reconciler + repository with fakes)
 ./gradlew assembleDebug       # builds app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk   # install on a connected device
 ```
 
 Open in Android Studio and run on any device/emulator (API 24+). CI builds the APK and uploads it as an artifact.
