@@ -1,6 +1,6 @@
 # android-feed-reader
 
-> Offline-first Android feed reader: Jetpack Compose + Room + Ktor client, single-source-of-truth sync. **A 50,000-article reconcile preserves every local read/bookmark flag with 0 losses, CI-gated under 250 ms.** Room owns the cache, the remote owns content, local owns user state. 12 JVM unit tests, builds a debug APK in CI.
+> Offline-first Android feed reader: Jetpack Compose + Room + Ktor client, single-source-of-truth sync. **A 50,000-article reconcile preserves every local read/bookmark flag with 0 losses, CI-gated under 250 ms.** Room owns the cache, the remote owns content, local owns user state. 13 JVM unit tests, builds a debug APK in CI.
 
 [![ci](https://github.com/Tajaddin/android-feed-reader/actions/workflows/ci.yml/badge.svg)](https://github.com/Tajaddin/android-feed-reader/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -32,6 +32,8 @@ A correct sync needs a clear source-of-truth split. `SyncReconciler.reconcile(lo
 
 A failed refresh (offline) leaves the cached feed fully intact and shows a banner, so the app is usable with no network.
 
+The cache is read, reconciled and rewritten in one Room transaction (`ArticleDao.replaceWithReconciled`). A refresh that fails or is cancelled while writing rolls back instead of leaving the cache empty, and a read/bookmark toggle made during the write is applied after the commit instead of being overwritten.
+
 ## What it is
 
 | Layer | Implementation |
@@ -43,7 +45,7 @@ A failed refresh (offline) leaves the cached feed fully intact and shows a banne
 | Sync | pure `SyncReconciler` + `ArticleRepository` (offline-first: read cache, refresh remote, reconcile, persist) |
 | DI | manual (no framework), wired in `FeedApp` |
 
-The repository depends on the `ArticleDao` and `FeedApi` **interfaces**, so the entire offline-first flow is tested with in-memory fakes, no device or emulator.
+The repository depends on the `ArticleDao` and `FeedApi` **interfaces**, so the offline-first flow is tested with in-memory fakes, and the transactional refresh against a real in-memory Room database under Robolectric; no device or emulator.
 
 ## Why this matters for hiring
 
@@ -56,7 +58,7 @@ This is the architecture senior Android interviews probe: Compose + Room + a net
 Prerequisites: JDK 17+ (the included Gradle wrapper handles the rest), Android SDK with platform-34 and build-tools 34. On CI, `android-actions/setup-android@v3` installs the SDK; locally, Android Studio's first launch installs them, or `sdkmanager "platforms;android-34" "build-tools;34.0.0"`.
 
 ```bash
-./gradlew testDebugUnitTest   # 12 unit tests (reconciler + repository with fakes)
+./gradlew testDebugUnitTest   # 13 unit tests (reconciler, repository with fakes, Room refresh)
 ./gradlew assembleDebug       # builds app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk   # install on a connected device
 ```
@@ -78,13 +80,14 @@ data/ArticleRepository   single source of truth
 ## Testing
 
 ```bash
-./gradlew testDebugUnitTest   # 12 tests
+./gradlew testDebugUnitTest   # 13 tests
 ```
 
 - **SyncReconcilerTest** (7): add new, preserve flags on overlap, remote-content-wins, drop non-bookmarked, keep bookmarked, newest-first sort, and the **50k flag-preservation + perf** property.
 - **ArticleRepositoryTest** (5): refresh populates cache, read flag survives re-sync, bookmarked survives feed drop, non-bookmarked evicted, toggle helpers — all on in-memory `ArticleDao` and `FeedApi` fakes.
+- **RoomRefreshTest** (1): on a real in-memory Room database (Robolectric), a refresh that fails while rewriting the cache rolls back and keeps every cached article and bookmark.
 
-Room and the Ktor client are exercised by the production build (`assembleDebug` runs Room's KSP processor); their interfaces are faked in unit tests.
+The Ktor client is exercised by the production build only; its interface is faked in unit tests.
 
 ## Project layout
 
@@ -102,7 +105,7 @@ app/src/main/java/com/tajaddin/feedreader/
 
 ## Stack
 
-Kotlin 2.0, Jetpack Compose (BOM 2024.10), Material 3, Navigation-Compose, Room 2.6 (KSP), Ktor client 2.3 (OkHttp + kotlinx-serialization), AndroidX Lifecycle/StateFlow, JUnit4, kotlinx-coroutines-test, Gradle (wrapper), AGP 8.7, GitHub Actions. Targets JVM 17, minSdk 24.
+Kotlin 2.0, Jetpack Compose (BOM 2024.10), Material 3, Navigation-Compose, Room 2.6 (KSP), Ktor client 2.3 (OkHttp + kotlinx-serialization), AndroidX Lifecycle/StateFlow, JUnit4, kotlinx-coroutines-test, Robolectric, Gradle (wrapper), AGP 8.7, GitHub Actions. Targets JVM 17, minSdk 24.
 
 ## License
 
