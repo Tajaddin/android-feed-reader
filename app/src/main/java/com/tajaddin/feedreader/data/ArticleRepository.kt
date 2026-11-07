@@ -16,14 +16,10 @@ class ArticleRepository(
 ) {
     fun observeArticles(): Flow<List<Article>> = dao.observeAll()
 
-    /** Pull remote, reconcile with the cache, persist the merged set. */
+    /** Pull remote, then reconcile and persist the merged set in one transaction. */
     suspend fun refresh(): SyncReconciler.Result {
         val remote = api.fetchFeed().map { it.toArticle() }
-        val local = dao.getAll()
-        val result = SyncReconciler.reconcile(local, remote)
-        dao.clear()
-        dao.upsertAll(result.merged)
-        return result
+        return dao.replaceWithReconciled(remote)
     }
 
     suspend fun setRead(id: String, read: Boolean) = dao.setRead(id, read)
